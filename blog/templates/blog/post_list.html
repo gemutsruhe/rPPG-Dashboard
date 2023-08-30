@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSV Data and Charts</title>
+    <style>
+        .chart-container {
+            max-width: 100%;
+            height: 200px;
+        }
+        .chart {
+            width: auto;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.3/dist/chart.umd.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileItems = document.querySelectorAll('.file-item');
+            fileItems.forEach((fileItem, index) => {
+                const fileNameView = fileItem.querySelector('.file-name');
+                const fileName = fileNameView.textContent;
+                console.log(fileName)
+                fetch('/get_json_data/' + fileName + '/')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data);  // JSON 데이터를 이용하여 클라이언트 사이드에서 작업 수행
+                    });
+            });
+
+        });
+
+        window.addEventListener('DOMContentLoaded', (event) => {
+            const fileItems = document.querySelectorAll('.file-item');
+            let activeCharts = {};
+            let activeChart = null;
+
+            fileItems.forEach((fileItem, index) => {
+
+                const fileNameView = fileItem.querySelector('.file-name');
+                const fileName = fileNameView.textContent;
+                fileNameView.addEventListener('click', () => {
+                    if (activeCharts[index]) {
+                        activeCharts[index].destroy();
+                        activeCharts[index] = null;
+                        const oldChartContainer = fileItem.querySelector('.chart-container');
+                        oldChartContainer.remove();
+                        const oldRangeButtonContainer = fileItem.querySelector('.range-button');
+                        oldRangeButtonContainer.remove();
+                    } else {
+                        const chartContainer = document.createElement('div');
+                        chartContainer.classList.add('chart-container');
+                        chartContainer.style.height='200px';
+
+                        const chartCanvas = document.createElement('canvas');
+                        chartCanvas.classList.add('chart');
+
+                        const rangeButtonContainer = document.createElement('div');
+                        rangeButtonContainer.classList.add('range-button');
+
+                        const prevButton = document.createElement('button');
+                        prevButton.textContent = 'Prev Range';
+
+                        const nextButton = document.createElement('button');
+                        nextButton.textContent = 'Next Range';
+
+                        rangeButtonContainer.appendChild(prevButton);
+                        rangeButtonContainer.appendChild(nextButton);
+                        chartContainer.appendChild(chartCanvas);
+                        //container.appendChild(rangeButtonContainer);
+
+                        fileItem.appendChild(chartContainer);
+                        fileItem.appendChild(rangeButtonContainer);
+
+                        fetch('get_bvp_data/' + fileName + '/')
+                        .then(response => response.json())
+                        .then(data => {
+                            const secondColumnData = data.map(row => row[1]);
+                            const timeLabels = data.map((_, index) => index);
+
+                            let visibleDataStart = 0;
+                            let visibleDataEnd = Math.min(900, data.length);
+
+                            const chartData = {
+                                labels: timeLabels.slice(visibleDataStart, visibleDataEnd),
+                                datasets: [{
+                                    label: 'Second Column Data',
+                                    data: secondColumnData.slice(visibleDataStart, visibleDataEnd),
+                                    borderColor: 'rgba(75, 192, 192, 1)',
+                                    borderWidth: 1,
+                                    fill: false
+                                }]
+                            };
+
+                            const chartOptions = {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: {
+                                        type: 'linear',
+                                        position: 'bottom',
+                                        min: visibleDataStart,
+                                        max: visibleDataEnd - 1,
+                                        beginAtZero: true
+                                    }
+                                }
+                            };
+
+                            const chartCanvas = chartContainer.querySelector('.chart');
+                            activeChart = new Chart(chartCanvas, {
+                                type: 'line',
+                                data: chartData,
+                                options: chartOptions
+                            });
+                            activeCharts[index] = activeChart;
+
+                            prevButton.addEventListener('click', () => {
+                            if(visibleDataStart !== 0) {
+
+                                const myChart = activeCharts[index];
+                                visibleDataStart -= 900;
+                                visibleDataEnd -= 900;
+
+                                if (visibleDataStart < 0) {
+                                    visibleDataStart = 0;
+                                }
+
+                                myChart.data.labels = timeLabels.slice(visibleDataStart, visibleDataEnd);
+                                myChart.data.datasets[0].data = secondColumnData.slice(visibleDataStart, visibleDataEnd);
+                                myChart.options.scales.x.min = visibleDataStart;
+                                myChart.options.scales.x.max = visibleDataEnd - 1;
+                                myChart.update();
+                                }
+                            });
+
+                            nextButton.addEventListener('click', () => {
+                                if(visibleDataEnd !== data.length) {
+
+                                const myChart = activeCharts[index];
+                                visibleDataStart += 900;
+                                visibleDataEnd += 900;
+
+                                if (visibleDataEnd > data.length) {
+                                    visibleDataEnd = data.length;
+                                }
+
+                                myChart.data.labels = timeLabels.slice(visibleDataStart, visibleDataEnd);
+                                myChart.data.datasets[0].data = secondColumnData.slice(visibleDataStart, visibleDataEnd);
+                                myChart.options.scales.x.min = visibleDataStart;
+                                myChart.options.scales.x.max = visibleDataEnd - 1;
+                                myChart.update();
+                                }
+                            });
+                        })
+                        .catch(error => {
+                            alert('Error fetching data: ' + error);
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <span id="search-option">
+        <select id="search-option-select">
+            <option value="all">전체</option>
+            <option value="name">이름</option>
+            <option value="sex">성별</option>
+            <option value="age">나이</option>
+        </select>
+        <button id="search-button">검색</button>
+    </span>
+
+    <ul>
+        {% for file in directory_files %}
+        <li class="file-item">
+            <div class="file-name">{{file}}</div>
+        </li>
+        {% endfor %}
+    </ul>
+    <script>
+        const searchOption = document.getElementById("search-option-select");
+        const searchButton = document.getElementById("search-button");
+
+        searchOption.addEventListener("change", function() {
+
+            const searchOptionContainer = document.getElementById("search-option");
+
+            const searchOptionInputs = document.querySelectorAll('.search-option-input');
+
+            if(searchOptionInputs) {
+                searchOptionInputs.forEach(input => {
+                    input.remove();
+                });
+            }
+
+            if(searchOption.value === "all") {
+            } else if(searchOption.value === "name") {
+                const nameInput = document.createElement('input');
+                nameInput.className = 'search-option-input';
+                nameInput.type = "text";
+                searchOptionContainer.insertBefore(nameInput, searchButton);
+            } else if(searchOption.value === "sex") {
+                const sexSelector = document.createElement('select');
+                sexSelector.className = 'search-option-input';
+
+                const optionMale = document.createElement('option');
+                optionMale.value = "M";
+                optionMale.textContent = "남성";
+                sexSelector.appendChild(optionMale);
+
+                const optionFemale = document.createElement('option');
+                optionFemale.value = "F";
+                optionFemale.textContent = "여성"
+                sexSelector.appendChild(optionFemale);
+
+                searchOptionContainer.insertBefore(sexSelector, searchButton);
+
+            } else if(searchOption.value === "age") {
+                const ageRangeSmall = document.createElement('input');
+                ageRangeSmall.className = 'search-option-input';
+                ageRangeSmall.setAttribute("type", "number");
+                const ageRangeBig = document.createElement('input');
+                ageRangeBig.className = 'search-option-input';
+                ageRangeBig.setAttribute("type", "number");
+                searchOptionContainer.insertBefore(ageRangeSmall, searchButton);
+                searchOptionContainer.insertBefore(ageRangeBig, searchButton);
+            }
+        });
+
+
+        searchButton.addEventListener("click", function() {
+            const searchOptionInputs = document.querySelectorAll('.search-option-input');
+
+            let str = "";
+
+            searchOptionInputs.forEach(input => {
+                str = str + input.value + " ";
+            });
+            alert(str);
+        });
+
+    </script>
+</body>
+</html>
