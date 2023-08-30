@@ -34,6 +34,7 @@ def read_file_and_save_to_db(request, timestamp):
     print(data)
     if data is not {}:
         add_data_to_database(timestamp, data)
+        return JsonResponse(timestamp, safe=False)
 
 def load_data_from_json(file):
     try :
@@ -46,9 +47,30 @@ def load_data_from_json(file):
         return {}
 
 def add_data_to_database(timestamp, data):
+
     user_info = UserInfo(timestamp=timestamp,
-                         name=data['name'],
-                         sex=data['sex'],
-                         age=data['age']
+                         userName=data['userName'],
+                         userSex=data['userSex'],
+                         userAge=data['userAge']
                          )
     user_info.save()
+
+def get_data_by_name(request, user_name):
+    try:
+        user_infos = UserInfo.objects.filter(userName=user_name)
+        timestamp_list = [user_info.timestamp for user_info in user_infos]
+        return JsonResponse(timestamp_list, safe=False)
+    except UserInfo.DoesNotExist:
+        pass
+
+def get_data_by_sex(request, user_sex):
+    try:
+        user_info = UserInfo.objects.filter(userSex=user_sex)
+    except UserInfo.DoesNotExist:
+        pass
+
+def get_data_by_age(request, user_age_small, user_age_big):
+    try:
+        user_info = UserInfo.objects.filter(age__gte=user_age_small, age__lte=user_age_big)
+    except UserInfo.DoesNotExist:
+        pass

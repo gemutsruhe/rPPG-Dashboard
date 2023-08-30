@@ -22,7 +22,6 @@
                 fetch('/get_json_data/' + fileName + '/')
                     .then(response => response.json())
                     .then(data => {
-                        console.log(data);  // JSON 데이터를 이용하여 클라이언트 사이드에서 작업 수행
                     });
             });
 
@@ -170,7 +169,7 @@
         <button id="search-button">검색</button>
     </span>
 
-    <ul>
+    <ul id="result-list">
         {% for file in directory_files %}
         <li class="file-item">
             <div class="file-name">{{file}}</div>
@@ -187,6 +186,7 @@
 
             const searchOptionInputs = document.querySelectorAll('.search-option-input');
 
+            const resultList = document.getElementById("result-list");
             if(searchOptionInputs) {
                 searchOptionInputs.forEach(input => {
                     input.remove();
@@ -236,7 +236,40 @@
             searchOptionInputs.forEach(input => {
                 str = str + input.value + " ";
             });
-            alert(str);
+            if(searchOption.value === "all") {
+
+            } else if(searchOption.value === "name") {
+                const fileItems = document.querySelectorAll('.file-item');  // .file-item 클래스를 가진 요소들 선택
+
+                fileItems.forEach(fileItem => {
+                    fileItem.remove();  // 각 요소를 삭제
+                });
+
+                const user_name = searchOptionInputs[0].value;
+                if(user_name) {
+                    fetch('/get_data_by_name/'+ user_name + '/')
+                        .then(response => response.json())
+                        .then(data => {
+                        if(data && data.length > 0) {
+                            data.forEach(timestamp => {
+                                console.log(data);
+                                //const li = document.createElement("li");
+                                //li.className = 'file-item';
+                                //li.textContent = timestamp;
+                                //resultList.appendChild(li);
+                            });
+                        } else {
+                            resultList.innerHTMLL = "<li>No data found.</li>";
+                        }
+                    });
+                } else {
+                    resultList.innerHTML = "<li>Please enter a user name.</li>";
+                }
+            } else if(searchOption.value === "sex") {
+
+            } else if(searchOption.value === "age") {
+
+            }
         });
 
     </script>

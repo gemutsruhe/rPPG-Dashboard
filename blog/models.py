@@ -22,9 +22,9 @@ class Post(models.Model):
 
 class UserInfo(models.Model):
     timestamp = models.CharField(max_length=16, primary_key=True)
-    name = models.TextField(max_length=30)
-    sex = models.TextField(max_length=1)
-    age = models.IntegerField()
+    userName = models.TextField(max_length=30)
+    userSex = models.TextField(max_length=1)
+    userAge = models.IntegerField()
 
     def __str__(self):
         return self.timestamp
