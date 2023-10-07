@@ -18,10 +18,21 @@ def directory_files(request):
 
     return render(request, 'blog/post_list.html', {'directory_files': file_list})
 
-def get_bvp_data(request, timestamp):
+def get_measured_bvp_data(request, timestamp):
     directory_path = '/Users/user/Documents/record/' + timestamp
     print(directory_path)
     csv_file_path = os.path.join(directory_path, 'rawBvp.csv')
+    csv_data = []
+    if os.path.exists(csv_file_path):
+        with open(csv_file_path, 'r') as csv_file:
+            csv_reader = csv.reader(csv_file)
+            csv_data = list(csv_reader)
+    return JsonResponse(csv_data, safe=False)
+
+def get_predicted_bvp_data(request, timestamp):
+    directory_path = '/Users/user/Documents/record/' + timestamp
+    print(directory_path)
+    csv_file_path = os.path.join(directory_path, 'predictedBvp.csv')
     csv_data = []
     if os.path.exists(csv_file_path):
         with open(csv_file_path, 'r') as csv_file:
@@ -55,6 +66,14 @@ def add_data_to_database(timestamp, data):
                          )
     user_info.save()
 
+def get_data_all(reuqest):
+    try:
+        user_infos = UserInfo.objects.all()
+        timestamp_list = [user_info.timestamp for user_info in user_infos]
+        return JsonResponse(timestamp_list, safe=False)
+    except UserInfo.DoesNotExist:
+        pass
+
 def get_data_by_name(request, user_name):
     try:
         user_infos = UserInfo.objects.filter(userName=user_name)
@@ -65,12 +84,18 @@ def get_data_by_name(request, user_name):
 
 def get_data_by_sex(request, user_sex):
     try:
-        user_info = UserInfo.objects.filter(userSex=user_sex)
+        user_infos = UserInfo.objects.filter(userSex=user_sex)
+        timestamp_list = [user_info.timestamp for user_info in user_infos]
+        return JsonResponse(timestamp_list, safe=False)
     except UserInfo.DoesNotExist:
         pass
 
-def get_data_by_age(request, user_age_small, user_age_big):
+def get_data_by_age(request, user_age_min, user_age_max):
     try:
-        user_info = UserInfo.objects.filter(age__gte=user_age_small, age__lte=user_age_big)
+        user_age_min = int(user_age_min)
+        user_age_max = int(user_age_max)
+        user_infos = UserInfo.objects.filter(userAge__gte=user_age_min, userAge__lte=user_age_max)
+        timestamp_list = [user_info.timestamp for user_info in user_infos]
+        return JsonResponse(timestamp_list, safe=False)
     except UserInfo.DoesNotExist:
         pass

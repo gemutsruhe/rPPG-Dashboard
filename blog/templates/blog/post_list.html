@@ -12,151 +12,7 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.3/dist/chart.umd.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const fileItems = document.querySelectorAll('.file-item');
-            fileItems.forEach((fileItem, index) => {
-                const fileNameView = fileItem.querySelector('.file-name');
-                const fileName = fileNameView.textContent;
-                console.log(fileName)
-                fetch('/get_json_data/' + fileName + '/')
-                    .then(response => response.json())
-                    .then(data => {
-                    });
-            });
 
-        });
-
-        window.addEventListener('DOMContentLoaded', (event) => {
-            const fileItems = document.querySelectorAll('.file-item');
-            let activeCharts = {};
-            let activeChart = null;
-
-            fileItems.forEach((fileItem, index) => {
-
-                const fileNameView = fileItem.querySelector('.file-name');
-                const fileName = fileNameView.textContent;
-                fileNameView.addEventListener('click', () => {
-                    if (activeCharts[index]) {
-                        activeCharts[index].destroy();
-                        activeCharts[index] = null;
-                        const oldChartContainer = fileItem.querySelector('.chart-container');
-                        oldChartContainer.remove();
-                        const oldRangeButtonContainer = fileItem.querySelector('.range-button');
-                        oldRangeButtonContainer.remove();
-                    } else {
-                        const chartContainer = document.createElement('div');
-                        chartContainer.classList.add('chart-container');
-                        chartContainer.style.height='200px';
-
-                        const chartCanvas = document.createElement('canvas');
-                        chartCanvas.classList.add('chart');
-
-                        const rangeButtonContainer = document.createElement('div');
-                        rangeButtonContainer.classList.add('range-button');
-
-                        const prevButton = document.createElement('button');
-                        prevButton.textContent = 'Prev Range';
-
-                        const nextButton = document.createElement('button');
-                        nextButton.textContent = 'Next Range';
-
-                        rangeButtonContainer.appendChild(prevButton);
-                        rangeButtonContainer.appendChild(nextButton);
-                        chartContainer.appendChild(chartCanvas);
-                        //container.appendChild(rangeButtonContainer);
-
-                        fileItem.appendChild(chartContainer);
-                        fileItem.appendChild(rangeButtonContainer);
-
-                        fetch('get_bvp_data/' + fileName + '/')
-                        .then(response => response.json())
-                        .then(data => {
-                            const secondColumnData = data.map(row => row[1]);
-                            const timeLabels = data.map((_, index) => index);
-
-                            let visibleDataStart = 0;
-                            let visibleDataEnd = Math.min(900, data.length);
-
-                            const chartData = {
-                                labels: timeLabels.slice(visibleDataStart, visibleDataEnd),
-                                datasets: [{
-                                    label: 'Second Column Data',
-                                    data: secondColumnData.slice(visibleDataStart, visibleDataEnd),
-                                    borderColor: 'rgba(75, 192, 192, 1)',
-                                    borderWidth: 1,
-                                    fill: false
-                                }]
-                            };
-
-                            const chartOptions = {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: {
-                                    x: {
-                                        type: 'linear',
-                                        position: 'bottom',
-                                        min: visibleDataStart,
-                                        max: visibleDataEnd - 1,
-                                        beginAtZero: true
-                                    }
-                                }
-                            };
-
-                            const chartCanvas = chartContainer.querySelector('.chart');
-                            activeChart = new Chart(chartCanvas, {
-                                type: 'line',
-                                data: chartData,
-                                options: chartOptions
-                            });
-                            activeCharts[index] = activeChart;
-
-                            prevButton.addEventListener('click', () => {
-                            if(visibleDataStart !== 0) {
-
-                                const myChart = activeCharts[index];
-                                visibleDataStart -= 900;
-                                visibleDataEnd -= 900;
-
-                                if (visibleDataStart < 0) {
-                                    visibleDataStart = 0;
-                                }
-
-                                myChart.data.labels = timeLabels.slice(visibleDataStart, visibleDataEnd);
-                                myChart.data.datasets[0].data = secondColumnData.slice(visibleDataStart, visibleDataEnd);
-                                myChart.options.scales.x.min = visibleDataStart;
-                                myChart.options.scales.x.max = visibleDataEnd - 1;
-                                myChart.update();
-                                }
-                            });
-
-                            nextButton.addEventListener('click', () => {
-                                if(visibleDataEnd !== data.length) {
-
-                                const myChart = activeCharts[index];
-                                visibleDataStart += 900;
-                                visibleDataEnd += 900;
-
-                                if (visibleDataEnd > data.length) {
-                                    visibleDataEnd = data.length;
-                                }
-
-                                myChart.data.labels = timeLabels.slice(visibleDataStart, visibleDataEnd);
-                                myChart.data.datasets[0].data = secondColumnData.slice(visibleDataStart, visibleDataEnd);
-                                myChart.options.scales.x.min = visibleDataStart;
-                                myChart.options.scales.x.max = visibleDataEnd - 1;
-                                myChart.update();
-                                }
-                            });
-                        })
-                        .catch(error => {
-                            alert('Error fetching data: ' + error);
-                        });
-                    }
-                });
-            });
-        });
-    </script>
 </head>
 <body>
     <span id="search-option">
@@ -170,12 +26,56 @@
     </span>
 
     <ul id="result-list">
-        {% for file in directory_files %}
-        <li class="file-item">
-            <div class="file-name">{{file}}</div>
-        </li>
-        {% endfor %}
     </ul>
+    <script>
+        function updateChart(chart, labels, data, start, end) {
+            chart.data.labels = labels.slice(start, end);
+            chart.data.datasets[0].data = data.slice(start, end);
+            chart.options.scales.x.min = start;
+            chart.options.scales.x.max = end - 1;
+            chart.update();
+        }
+
+        function createChart(data, label, chartCanvas, activeCharts, activeChart, index) {
+            const secondColumnData = data.map(row => row[1]);
+            const timeLabels = data.map((_, index) => index);
+
+            let visibleDataStart = 0;
+            let visibleDataEnd = Math.min(900, data.length);
+
+            const chartData = {
+                labels: timeLabels.slice(visibleDataStart, visibleDataEnd),
+                datasets: [{
+                    label: label,
+                    data: secondColumnData.slice(visibleDataStart, visibleDataEnd),
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    fill: false
+                }]
+            };
+
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        min: visibleDataStart,
+                        max: visibleDataEnd - 1,
+                        beginAtZero: true
+                    }
+                }
+            };
+
+            activeChart = new Chart(chartCanvas, {
+                type: 'line',
+                data: chartData,
+                options: chartOptions
+            });
+            activeCharts[index] = activeChart;
+        }
+    </script>
     <script>
         const searchOption = document.getElementById("search-option-select");
         const searchButton = document.getElementById("search-button");
@@ -183,10 +83,9 @@
         searchOption.addEventListener("change", function() {
 
             const searchOptionContainer = document.getElementById("search-option");
-
             const searchOptionInputs = document.querySelectorAll('.search-option-input');
-
             const resultList = document.getElementById("result-list");
+
             if(searchOptionInputs) {
                 searchOptionInputs.forEach(input => {
                     input.remove();
@@ -194,6 +93,7 @@
             }
 
             if(searchOption.value === "all") {
+
             } else if(searchOption.value === "name") {
                 const nameInput = document.createElement('input');
                 nameInput.className = 'search-option-input';
@@ -230,33 +130,177 @@
 
         searchButton.addEventListener("click", function() {
             const searchOptionInputs = document.querySelectorAll('.search-option-input');
-
+            const resultList = document.getElementById("result-list");
             let str = "";
 
             searchOptionInputs.forEach(input => {
                 str = str + input.value + " ";
             });
-            if(searchOption.value === "all") {
 
-            } else if(searchOption.value === "name") {
-                const fileItems = document.querySelectorAll('.file-item');  // .file-item 클래스를 가진 요소들 선택
-
+            const fileItems = document.querySelectorAll('.file-item');  // .file-item 클래스를 가진 요소들 선택
                 fileItems.forEach(fileItem => {
                     fileItem.remove();  // 각 요소를 삭제
                 });
-
+            let method = "";
+            let data = "";
+            method = searchOption.value;
+            if(searchOption.value === "all") {
+                data = 'all'
+            } else if(searchOption.value === "name") {
                 const user_name = searchOptionInputs[0].value;
-                if(user_name) {
-                    fetch('/get_data_by_name/'+ user_name + '/')
+                data = user_name;
+            } else if(searchOption.value === "sex") {
+                const user_sex = searchOptionInputs[0].value;
+                data = user_sex;
+            } else if(searchOption.value === "age") {
+                const user_age_min = searchOptionInputs[0].value;
+                const user_age_max = searchOptionInputs[1].value;
+                data = user_age_min + '/' + user_age_max;
+                if(data === '/') data = "";
+            }
+
+            if(data !== "") {
+                    fetch('/get_data/' + method + '/' + data + '/')
                         .then(response => response.json())
                         .then(data => {
                         if(data && data.length > 0) {
-                            data.forEach(timestamp => {
-                                console.log(data);
-                                //const li = document.createElement("li");
-                                //li.className = 'file-item';
-                                //li.textContent = timestamp;
-                                //resultList.appendChild(li);
+                            const fileItems = document.querySelectorAll('.file-item');
+                            let activeMeasuredCharts = {};
+                            let activeMeasuredChart = null;
+                            let activePredictedCharts = {};
+                            let activePredictedChart = null;
+
+                            const timestampIndexMap = new Map();
+
+                            data.forEach((timestamp, index) => {
+                                timestampIndexMap.set(timestamp, index);
+                                const li = document.createElement("li");
+                                li.className = 'file-item';
+
+                                const div = document.createElement("div");
+                                div.className = 'file-name';
+                                div.textContent = timestamp;
+                                const fileName = timestamp;
+
+                                li.appendChild(div);
+
+                                div.addEventListener('click', () => {
+                                    index = timestampIndexMap.get(timestamp);
+                                    if (activeMeasuredCharts[index]) {
+                                        activeMeasuredCharts[index].destroy();
+                                        activeMeasuredCharts[index] = null;
+                                        activePredictedCharts[index].destroy();
+                                        activePredictedCharts[index] = null;
+
+                                        const oldChartContainer = li.querySelector('.chart-container');
+                                        oldChartContainer.remove();
+                                        const oldChartContainer2 = li.querySelector('.chart-container');
+                                        oldChartContainer2.remove();
+                                        const oldRangeButtonContainer = li.querySelector('.range-button');
+                                        oldRangeButtonContainer.remove();
+                                    } else {
+                                        const chartContainer = document.createElement('div');
+                                        chartContainer.classList.add('chart-container');
+                                        chartContainer.style.height='200px';
+
+                                        const chartCanvas = document.createElement('canvas');
+                                        chartCanvas.classList.add('measuredChart');
+
+                                        const chartContainer2 = document.createElement('div');
+                                        chartContainer2.classList.add('chart-container');
+                                        chartContainer2.style.height='200px';
+
+                                        const chartCanvas2 = document.createElement('canvas');
+                                        chartCanvas2.classList.add('predictedChart');
+
+                                        const rangeButtonContainer = document.createElement('div');
+                                        rangeButtonContainer.classList.add('range-button');
+
+                                        const prevButton = document.createElement('button');
+                                        prevButton.textContent = 'Prev Range';
+
+                                        const nextButton = document.createElement('button');
+                                        nextButton.textContent = 'Next Range';
+
+                                        chartContainer.appendChild(chartCanvas);
+                                        chartContainer2.appendChild(chartCanvas2);
+                                        rangeButtonContainer.appendChild(prevButton);
+                                        rangeButtonContainer.appendChild(nextButton);
+
+                                        li.appendChild(chartContainer);
+                                        li.appendChild(chartContainer2);
+                                        li.appendChild(rangeButtonContainer);
+
+                                        fetch('get_measured_bvp_data/' + fileName + '/')
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            const label = 'predicted bvp'
+                                            const predictedChartCanvas = chartContainer2.querySelector('.predictedChart');
+                                            createChart(data, label, predictedChartCanvas, activePredictedCharts, activePredictedChart, index);
+                                        })
+                                        .catch(error => {
+                                            alert('Error fetching data: ' + error);
+                                        });
+
+                                        fetch('get_measured_bvp_data/' + fileName + '/')
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            const label = 'measured bvp'
+                                            const measuredChartCanvas = chartContainer.querySelector('.measuredChart');
+                                            createChart(data, label, measuredChartCanvas, activeMeasuredCharts, activeMeasuredChart, index);
+
+                                            const secondColumnData = data.map(row => row[1]);
+                                            const timeLabels = data.map((_, index) => index);
+
+                                            prevButton.addEventListener('click', () => {
+                                            visibleDataStart = activeMeasuredCharts[index].options.scales.x.min;
+                                            visibleDataEnd = activeMeasuredCharts[index].options.scales.x.max;
+                                            if(visibleDataStart !== 0) {
+
+                                                visibleDataStart -= 900;
+                                                visibleDataEnd = visibleDataStart + 900;
+
+                                                if (visibleDataStart < 0) {
+                                                    visibleDataStart = 0;
+                                                    visibleDataEnd = 900;
+                                                }
+
+                                                const myChart = activeMeasuredCharts[index];
+                                                    updateChart(myChart, timeLabels, secondColumnData, visibleDataStart, visibleDataEnd);
+
+                                                    const myChart2 = activePredictedCharts[index];
+                                                    updateChart(myChart2, timeLabels, secondColumnData, visibleDataStart, visibleDataEnd);
+
+                                                }
+                                            });
+
+                                            nextButton.addEventListener('click', () => {
+                                                visibleDataStart = activeMeasuredCharts[index].options.scales.x.min;
+                                                visibleDataEnd = activeMeasuredCharts[index].options.scales.x.max;
+
+                                                if(visibleDataEnd !== data.length - 1) {
+
+                                                    visibleDataStart += 900;
+                                                    visibleDataEnd = visibleDataStart + 900;
+
+                                                    if (visibleDataEnd > data.length) {
+                                                        visibleDataEnd = data.length;
+                                                    }
+
+                                                    const myChart = activeMeasuredCharts[index];
+                                                    updateChart(myChart, timeLabels, secondColumnData, visibleDataStart, visibleDataEnd);
+
+                                                    const myChart2 = activePredictedCharts[index];
+                                                    updateChart(myChart2, timeLabels, secondColumnData, visibleDataStart, visibleDataEnd);
+                                                }
+                                            });
+                                        })
+                                        .catch(error => {
+                                            alert('Error fetching data: ' + error);
+                                        });
+                                }
+                            });
+                                resultList.appendChild(li);
                             });
                         } else {
                             resultList.innerHTMLL = "<li>No data found.</li>";
@@ -265,11 +309,6 @@
                 } else {
                     resultList.innerHTML = "<li>Please enter a user name.</li>";
                 }
-            } else if(searchOption.value === "sex") {
-
-            } else if(searchOption.value === "age") {
-
-            }
         });
 
     </script>
